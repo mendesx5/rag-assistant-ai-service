@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+aio-pika
+pypdf
+pydantic-settings
+pytest
