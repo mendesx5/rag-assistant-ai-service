@@ -4,3 +4,6 @@ aio-pika
 pypdf
 pydantic-settings
 pytest
+langchain-text-splitters
+chromadb
+fastembed

@@ -10,5 +10,8 @@ class Settings(BaseSettings):
     rabbitmq_password: str = "guest"
     rabbitmq_queue: str = "documents.queue"
 
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+
 
 settings = Settings()
