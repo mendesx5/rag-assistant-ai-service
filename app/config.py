@@ -16,5 +16,7 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     embedding_cache_dir: str = ".model_cache"
 
+    chroma_path: str = ".chroma_db"
+    search_top_k: int = 4
 
 settings = Settings()
