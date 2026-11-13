@@ -1,5 +1,9 @@
+import chromadb
 import pytest
 
+from app.rag.vector_store import VectorStore
+
+VOCABULARY = ["vacation", "days", "expense", "reimbursement", "parking", "basement"]
 
 def build_pdf(text: str) -> bytes:
     """Builds a minimal one-page PDF containing the given text."""
@@ -40,3 +44,22 @@ def make_pdf(tmp_path):
         return str(path)
 
     return _make
+
+class FakeEmbedder:
+    """Counts known words, so texts sharing words end up close to each other."""
+
+    def _vector(self, text: str) -> list[float]:
+        words = text.lower().split()
+        return [float(words.count(word)) for word in VOCABULARY] + [0.01]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [self._vector(text) for text in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._vector(text)
+
+
+@pytest.fixture
+def store(tmp_path) -> VectorStore:
+    """A real ChromaDB in a temp folder, with a fake embedder (no model download)."""
+    return VectorStore(chromadb.PersistentClient(path=str(tmp_path / "chroma")), FakeEmbedder())

@@ -8,24 +8,26 @@ from pydantic import ValidationError
 
 from app.config import settings
 from app.messaging.schemas import DocumentUploadedEvent
-from app.pdf.extractor import PdfExtractionError, extract_text
+from app.pdf.extractor import PdfExtractionError
+from app.rag.pipeline import index_pdf
+from app.rag.vector_store import get_vector_store
 
 logger = logging.getLogger(__name__)
 
 RECONNECT_DELAY_SECONDS = 5
 
 
-def process_event(body: bytes) -> str:
-    """Validates the message and extracts the text of the referenced PDF."""
+def process_event(body: bytes) -> int:
+    """Validates the message and indexes the referenced PDF. Returns the chunk count."""
     event = DocumentUploadedEvent.model_validate_json(body)
     logger.info("Processing document %s (event %s)", event.document_id, event.event_id)
-    return extract_text(event.file_path)
-
+    return index_pdf(str(event.document_id), event.file_path, get_vector_store())
 
 async def handle_message(message: AbstractIncomingMessage) -> None:
     try:
-        # PDF reading is blocking work: run it in a thread so the event loop stays free.
-        text = await asyncio.to_thread(process_event, message.body)
+        # Reading, embedding and indexing are blocking work: run them in a thread
+        # so the event loop stays free.
+        chunk_count = await asyncio.to_thread(process_event, message.body)
     except (ValidationError, PdfExtractionError) as exc:
         # Irreversible: retrying will never fix it, so do NOT put it back in the queue.
         logger.error("Irreversible error, message discarded: %s", exc)
@@ -35,7 +37,7 @@ async def handle_message(message: AbstractIncomingMessage) -> None:
         logger.exception("Unexpected error, message sent back to the queue")
         await message.nack(requeue=True)
     else:
-        logger.info("Extracted %d characters. Preview: %s", len(text), text[:300])
+        logger.info("Indexing finished (%d chunks)", chunk_count)
         # Only now, after the work succeeded, RabbitMQ is allowed to forget the message.
         await message.ack()
 

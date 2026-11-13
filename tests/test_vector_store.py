@@ -1,24 +1,4 @@
-import chromadb
 import pytest
-
-from app.rag.vector_store import VectorStore
-
-VOCABULARY = ["vacation", "days", "expense", "reimbursement", "parking", "basement"]
-
-
-class FakeEmbedder:
-    """Counts known words, so texts sharing words end up close to each other."""
-
-    def _vector(self, text: str) -> list[float]:
-        words = text.lower().split()
-        return [float(words.count(word)) for word in VOCABULARY] + [0.01]
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return [self._vector(text) for text in texts]
-
-    def embed_query(self, text: str) -> list[float]:
-        return self._vector(text)
-
 
 CHUNKS = [
     "employees get thirty vacation days per year",
@@ -28,10 +8,6 @@ CHUNKS = [
 
 
 @pytest.fixture
-def store(tmp_path) -> VectorStore:
-    return VectorStore(chromadb.PersistentClient(path=str(tmp_path)), FakeEmbedder())
-
-
 def test_index_document_returns_the_number_of_chunks(store):
     assert store.index_document("doc-1", CHUNKS) == 3
     assert store.count_chunks("doc-1") == 3
